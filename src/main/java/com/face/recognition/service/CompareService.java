@@ -201,7 +201,7 @@ public class CompareService {
                 genderDifference = 50;
             }
                 
-            fr.confidence = 100 - genderDifference - Math.pow(difference * 15, 2);
+            //fr.confidence = 100 - genderDifference - Math.pow(difference * 15, 2);
             
             //System.out.println(facetwotwo);
 
@@ -235,6 +235,8 @@ public class CompareService {
                 weight1 = 1 - (weight1 -1);
 
             // fr.confidence = (double)weight1;
+
+            fr.confidence =  (double) ((weight1*100 / 2) +  ((100  - Math.pow(difference * 15, 2))/2)) - genderDifference - Math.abs(faceoneone.faceAttributes.age - facetwotwo.faceAttributes.age );
 
 
             if (isNull(entityone)) {
