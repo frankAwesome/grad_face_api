@@ -67,7 +67,7 @@ public class CompareService {
             URI uri = builder.build();
             HttpPost request = new HttpPost(uri);
             request.setHeader("Content-Type", "application/octet-stream");
-            request.setHeader("Ocp-Apim-Subscription-Key", "c0fdaf9e3012412995ef401f3a4fabe3");
+            request.setHeader("Ocp-Apim-Subscription-Key", "");
 
             ByteArrayEntity reqEntity = new ByteArrayEntity(decodedString1, ContentType.APPLICATION_OCTET_STREAM);
             request.setEntity(reqEntity);
