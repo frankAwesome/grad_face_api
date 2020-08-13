@@ -67,7 +67,7 @@ public class CompareService {
             URI uri = builder.build();
             HttpPost request = new HttpPost(uri);
             request.setHeader("Content-Type", "application/octet-stream");
-            request.setHeader("Ocp-Apim-Subscription-Key", "");
+            request.setHeader("Ocp-Apim-Subscription-Key", "c0fdaf9e3012412995ef401f3a4fabe3");
 
             ByteArrayEntity reqEntity = new ByteArrayEntity(decodedString1, ContentType.APPLICATION_OCTET_STREAM);
             request.setEntity(reqEntity);
@@ -97,8 +97,36 @@ public class CompareService {
 
             fr = new FaceResponse();
             fr.faces = faces;
+
             //we should still do the algorithm for this
-            fr.confidence = 92.70;
+            //fr.confidence = 92.70;
+
+            //weight1
+
+            //get angles between pupils and nosetip
+            float anglepupilsone = (float) Math.toDegrees(Math.atan2(faceoneone.faceLandmarks.pupilRight.y - faceoneone.faceLandmarks.pupilLeft.y, faceoneone.faceLandmarks.pupilRight.x - faceoneone.faceLandmarks.pupilLeft.x));
+            float anglepupilstwo = (float) Math.toDegrees(Math.atan2(facetwotwo.faceLandmarks.pupilRight.y - facetwotwo.faceLandmarks.pupilLeft.y, facetwotwo.faceLandmarks.pupilRight.x - facetwotwo.faceLandmarks.pupilLeft.x));
+
+            float angleleftone = (float) Math.toDegrees(Math.atan2(faceoneone.faceLandmarks.noseTip.y - faceoneone.faceLandmarks.pupilLeft.y, faceoneone.faceLandmarks.noseTip.x - faceoneone.faceLandmarks.pupilLeft.x));
+            float anglelefttwo = (float) Math.toDegrees(Math.atan2(facetwotwo.faceLandmarks.noseTip.y - facetwotwo.faceLandmarks.pupilLeft.y, facetwotwo.faceLandmarks.noseTip.x - facetwotwo.faceLandmarks.pupilLeft.x));
+
+            float anglerightone = (float) Math.toDegrees(Math.atan2(faceoneone.faceLandmarks.noseTip.y - faceoneone.faceLandmarks.pupilRight.y, faceoneone.faceLandmarks.noseTip.x - faceoneone.faceLandmarks.pupilRight.x));
+            float anglerighttwo = (float) Math.toDegrees(Math.atan2(facetwotwo.faceLandmarks.noseTip.y - facetwotwo.faceLandmarks.pupilRight.y, facetwotwo.faceLandmarks.noseTip.x - facetwotwo.faceLandmarks.pupilRight.x));
+            float trilefttangleone = (float)angleleftone + anglepupilsone;
+            float trirightangleone = (float) 360 - anglerightone - 180 + anglepupilsone;
+            float tribottomangleone = (float) 180 - (trilefttangleone + trirightangleone);
+
+            float trilefttangletwo = (float)anglelefttwo + anglepupilstwo;
+            float trirightangletwo = (float) 360 - anglerighttwo - 180 + anglepupilstwo;
+            float tribottomangletwo = (float) 180 - (trilefttangletwo + trirightangletwo);
+
+            float weight1 = (float)tribottomangleone / tribottomangletwo;
+
+            if (weight1 > 1)
+                weight1 = 1 - (weight1 -1);
+
+            fr.confidence = (double)weight1;
+
 
             if (isNull(entityone)) {
                 log.debug("{}", EntityUtils.toString(entityone));
