@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.Base64;
 
 import javax.imageio.ImageIO;
+import com.face.recognition.models.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -13,14 +14,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 
-import com.face.recognition.models.AuthenticationRequest;
-import com.face.recognition.models.AuthenticationResponse;
 import com.face.recognition.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 
@@ -94,6 +92,20 @@ public class CompareController {
         return ResponseEntity.ok(new AuthenticationResponse(jwt));
     }
 
-
-    
+    @PostMapping("/register")
+    public ResponseEntity<?> registerUser(@RequestBody RegisterRequest registerRequest)
+    {
+        User user = new User();
+        user.setUserName(registerRequest.getUsername());
+        user.setPassword(registerRequest.getPassword());
+        System.out.println();
+        System.out.println();
+        System.out.println();
+        System.out.println(user.toString());
+        System.out.println();
+        System.out.println();
+        System.out.println();
+        userDetailsService.registerUser(user);
+        return null;
+    }
 }

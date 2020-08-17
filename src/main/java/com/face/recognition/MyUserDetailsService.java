@@ -1,19 +1,34 @@
 package com.face.recognition;
 
-import org.springframework.security.core.userdetails.User;
+import com.face.recognition.models.JdbcUserRepository;
+import com.face.recognition.models.User;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
+import java.util.Optional;
 
 @Service
 public class MyUserDetailsService implements UserDetailsService {
 
+    @Autowired
+    private JdbcUserRepository userRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    public void registerUser(User user) {
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        userRepository.save(user);
+    }
+
     @Override
-    public UserDetails loadUserByUsername(String s) throws UsernameNotFoundException {
-        return new User("foo", "foo",
-                new ArrayList<>());
+    public UserDetails loadUserByUsername(String userName) throws UsernameNotFoundException {
+        Optional<UserDetails> user = userRepository.findByUserName(userName);
+        System.out.println("User--------------------------------" + user.get().toString());
+        return user.orElse(null);
     }
 }
