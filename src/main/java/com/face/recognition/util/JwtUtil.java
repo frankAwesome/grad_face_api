@@ -3,8 +3,10 @@ package com.face.recognition.util;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Date;
 import java.util.HashMap;
@@ -29,7 +31,17 @@ public class JwtUtil {
         return claimsResolver.apply(claims);
     }
     private Claims extractAllClaims(String token) {
-        return Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody();
+        Claims claims;
+        try
+        {
+            return Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody();
+        }
+        catch (io.jsonwebtoken.SignatureException exception)
+        {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "JWT signature does not match locally computed signature. JWT validity cannot be asserted and should not be trusted.", exception);
+        }
+
     }
 
     private Boolean isTokenExpired(String token) {

@@ -32,7 +32,7 @@ public class UserManagementController {
     @Autowired
     private MyUserDetailsService userDetailsService;
 
-    @PostMapping("/authenticate")
+    @PostMapping("/login")
     public ResponseEntity<?> createAuthenticationToken(@RequestBody AuthenticationRequest authenticationRequest) throws Exception {
 
         try {
@@ -44,6 +44,13 @@ public class UserManagementController {
             throw new Exception("Incorrect username or password", e);
         }
 
+        System.out.println();
+        System.out.println();
+        System.out.println();
+        System.out.println("Authorised");
+        System.out.println();
+        System.out.println();
+        System.out.println();
 
         final UserDetails userDetails = userDetailsService
                 .loadUserByUsername(authenticationRequest.getUsername());
