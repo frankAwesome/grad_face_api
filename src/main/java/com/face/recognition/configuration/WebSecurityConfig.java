@@ -1,4 +1,4 @@
-package com.face.recognition;
+package com.face.recognition.configuration;
 
 import com.face.recognition.filters.JwtRequestFilter;
 import org.springframework.beans.factory.annotation.Autowired;

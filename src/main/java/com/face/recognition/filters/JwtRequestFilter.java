@@ -1,6 +1,6 @@
 package com.face.recognition.filters;
 
-import com.face.recognition.MyUserDetailsService;
+import com.face.recognition.service.MyUserDetailsService;
 import com.face.recognition.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

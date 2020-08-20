@@ -1,4 +1,4 @@
-package com.face.recognition.models;
+package com.face.recognition.models.userManagement;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.core.userdetails.UserDetails;

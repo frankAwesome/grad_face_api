@@ -1,7 +1,7 @@
-package com.face.recognition;
+package com.face.recognition.service;
 
-import com.face.recognition.models.JdbcUserRepository;
-import com.face.recognition.models.User;
+import com.face.recognition.models.userManagement.JdbcUserRepository;
+import com.face.recognition.models.userManagement.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

@@ -1,4 +1,4 @@
-package com.face.recognition.models;
+package com.face.recognition.models.userManagement;
 
 import java.io.Serializable;
 
