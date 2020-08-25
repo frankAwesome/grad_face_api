@@ -43,6 +43,7 @@ public class CompareService {
         return normalizedFace;
     }
 
+    // gets the relative distance difference between different face's features
     private double calculateDifferenceRatio(double referenceDistance1, double referenceDistance2, double distance1, double distance2) {
 
         double ratio = (referenceDistance1/distance1)/(referenceDistance2/distance2);
@@ -50,6 +51,7 @@ public class CompareService {
         return Math.abs(1-ratio);
     }
 
+    // gets distances between certain facial features
     private ArrayList<Double> calculateDistanceList(Face face) {
 
         ArrayList<Double> distanceList = new ArrayList<Double>();
