@@ -31,8 +31,7 @@ import static java.util.Objects.isNull;
 @Service
 public class CompareService {
 
-    
-    public double calcDistance(double x1, double y1, double x2, double y2) {
+    private double calcDistance(double x1, double y1, double x2, double y2) {
                 
         return Math.sqrt((y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1));
     }
@@ -42,6 +41,31 @@ public class CompareService {
         Face normalizedFace = new Face();
 
         return normalizedFace;
+    }
+
+    // gets the relative distance difference between different face's features
+    private double calculateDifferenceRatio(double referenceDistance1, double referenceDistance2, double distance1, double distance2) {
+
+        double ratio = (referenceDistance1/distance1)/(referenceDistance2/distance2);
+        
+        return Math.abs(1-ratio);
+    }
+
+    // gets distances between certain facial features
+    private ArrayList<Double> calculateDistanceList(Face face) {
+
+        ArrayList<Double> distanceList = new ArrayList<Double>();
+
+        distanceList.add(this.calcDistance(face.faceLandmarks.eyeLeftOuter.x, face.faceLandmarks.eyeLeftOuter.y, face.faceLandmarks.eyeRightOuter.x, face.faceLandmarks.eyeRightOuter.y));
+        distanceList.add(this.calcDistance(face.faceLandmarks.eyebrowLeftOuter.x, face.faceLandmarks.eyebrowLeftOuter.y, face.faceLandmarks.eyebrowRightOuter.x, face.faceLandmarks.eyebrowRightOuter.y));
+        distanceList.add((this.calcDistance(face.faceLandmarks.eyeLeftOuter.x, face.faceLandmarks.eyeLeftOuter.y, face.faceLandmarks.eyeLeftInner.x, face.faceLandmarks.eyeLeftInner.y) + this.calcDistance(face.faceLandmarks.eyeRightOuter.x, face.faceLandmarks.eyeRightOuter.y, face.faceLandmarks.eyeRightInner.x, face.faceLandmarks.eyeRightInner.y))/2);
+        distanceList.add(this.calcDistance(face.faceLandmarks.mouthLeft.x, face.faceLandmarks.mouthLeft.y, face.faceLandmarks.mouthRight.x, face.faceLandmarks.mouthRight.y));
+        distanceList.add(this.calcDistance(face.faceLandmarks.noseLeftAlarOutTip.x, face.faceLandmarks.noseLeftAlarOutTip.y, face.faceLandmarks.noseRightAlarOutTip.x, face.faceLandmarks.noseRightAlarOutTip.y));
+        distanceList.add(this.calcDistance(face.faceLandmarks.noseLeftAlarTop.x, face.faceLandmarks.noseLeftAlarTop.y, face.faceLandmarks.noseRightAlarTop.x, face.faceLandmarks.noseRightAlarTop.y));
+        distanceList.add(this.calcDistance(face.faceLandmarks.pupilLeft.x, face.faceLandmarks.pupilLeft.y, face.faceLandmarks.noseTip.x, face.faceLandmarks.noseTip.y));
+        distanceList.add(this.calcDistance(face.faceLandmarks.pupilRight.x, face.faceLandmarks.pupilRight.y, face.faceLandmarks.noseTip.x, face.faceLandmarks.noseTip.y));
+        
+        return distanceList;
     }
 
     public FaceResponse compare(String body) {
@@ -85,12 +109,9 @@ public class CompareService {
 
             ByteArrayEntity reqEntity = new ByteArrayEntity(decodedString1, ContentType.APPLICATION_OCTET_STREAM);
             request.setEntity(reqEntity);
-            
-            
+              
             HttpResponse response = httpclient.execute(request);
             HttpEntity entityone = response.getEntity();
-
-            //System.out.println(entityone);
 
 
             ByteArrayEntity reqEntityTwo = new ByteArrayEntity(decodedString2, ContentType.APPLICATION_OCTET_STREAM);
@@ -99,128 +120,59 @@ public class CompareService {
             HttpResponse responsetwo = httpclient.execute(request);
             HttpEntity entitytwo = responsetwo.getEntity();
 
-            //System.out.println(entitytwo);
-
             ObjectMapper mapper = new ObjectMapper();
-            List<Face> faceone =
+            List<Face> faceOneList =
                     mapper.readValue(EntityUtils.toString(entityone), new TypeReference<List<Face>>() {});
 
-            List<Face> facetwo =
+            List<Face> faceTwoList =
                     mapper.readValue(EntityUtils.toString(entitytwo), new TypeReference<List<Face>>() {});
 
-            Face faceoneone = faceone.get(0);
-            Face facetwotwo = facetwo.get(0);
+            Face faceOne = faceOneList.get(0);
+            Face faceTwo = faceTwoList.get(0);
 
             List<Face> faces = new ArrayList<>();
-            faces.add(faceoneone);
-            faces.add(facetwotwo);
+            faces.add(faceOne);
+            faces.add(faceTwo);
 
-            double eyebrowDistance1 = this.calcDistance(faceoneone.faceLandmarks.eyebrowLeftOuter.x, faceoneone.faceLandmarks.eyebrowLeftOuter.y, faceoneone.faceLandmarks.eyebrowRightOuter.x, faceoneone.faceLandmarks.eyebrowRightOuter.y);
+            ArrayList<Double> distances1 = this.calculateDistanceList(faceOne);
 
-            double avgEyeWidth1 = (this.calcDistance(faceoneone.faceLandmarks.eyeLeftOuter.x, faceoneone.faceLandmarks.eyeLeftOuter.y, faceoneone.faceLandmarks.eyeLeftInner.x, faceoneone.faceLandmarks.eyeLeftInner.y) + this.calcDistance(faceoneone.faceLandmarks.eyeRightOuter.x, faceoneone.faceLandmarks.eyeRightOuter.y, faceoneone.faceLandmarks.eyeRightInner.x, faceoneone.faceLandmarks.eyeRightInner.y))/2;
+            ArrayList<Double> distances2 = this.calculateDistanceList(faceTwo);
 
-            double mouthWidth1 = this.calcDistance(faceoneone.faceLandmarks.mouthLeft.x, faceoneone.faceLandmarks.mouthLeft.y, faceoneone.faceLandmarks.mouthRight.x, faceoneone.faceLandmarks.mouthRight.y);
+            double difference = 0;
 
-            double noseBottomWidth1 = this.calcDistance(faceoneone.faceLandmarks.noseLeftAlarOutTip.x, faceoneone.faceLandmarks.noseLeftAlarOutTip.y, faceoneone.faceLandmarks.noseRightAlarOutTip.x, faceoneone.faceLandmarks.noseRightAlarOutTip.y);
-            
-            double noseMiddleWidth1 = this.calcDistance(faceoneone.faceLandmarks.noseLeftAlarTop.x, faceoneone.faceLandmarks.noseLeftAlarTop.y, faceoneone.faceLandmarks.noseRightAlarTop.x, faceoneone.faceLandmarks.noseRightAlarTop.y);
+            for (int i = 1; i < distances1.size(); i++) {
 
-            double eyeDistance1 = this.calcDistance(faceoneone.faceLandmarks.eyeLeftOuter.x, faceoneone.faceLandmarks.eyeLeftOuter.y, faceoneone.faceLandmarks.eyeRightOuter.x, faceoneone.faceLandmarks.eyeRightOuter.y);
+                difference += this.calculateDifferenceRatio(distances1.get(0), distances2.get(0), distances1.get(i), distances2.get(i));
+            }
 
-            double leftEyebrowToMiddleNose1 = this.calcDistance(faceoneone.faceLandmarks.pupilLeft.x, faceoneone.faceLandmarks.pupilLeft.y, faceoneone.faceLandmarks.noseTip.x, faceoneone.faceLandmarks.noseTip.y);
+            difference = Math.pow(difference * 8, 2);
 
-            double rigthEyebrowToMiddleNose1 = this.calcDistance(faceoneone.faceLandmarks.pupilRight.x, faceoneone.faceLandmarks.pupilRight.y, faceoneone.faceLandmarks.noseTip.x, faceoneone.faceLandmarks.noseTip.y);
-
-
-            // System.out.println("eyeDistance1/eyebrowDistance1: " + eyeDistance1/eyebrowDistance1);
-            
-            // System.out.println("mouthWidth1/eyeDistance1: " + mouthWidth1/eyeDistance1);
-
-            // System.out.println("eyeWidth/eyeDistance1: " + avgEyeWidth1/eyeDistance1);
-
-            // System.out.println("noseBottomWidth1/eyeDistance1: " + noseBottomWidth1/eyeDistance1);
-
-            // System.out.println("leftEyebrowToMiddleNose1/eyeDistance1: " + leftEyebrowToMiddleNose1/eyeDistance1);
-
-            // System.out.println("rigthEyebrowToMiddleNose1/eyeDistance1: " + rigthEyebrowToMiddleNose1/eyeDistance1);
-
-            // System.out.println("noseBottomMiddleWidth1/eyeDistance1: " + noseMiddleWidth1/eyeDistance1);
-
-
-            double eyebrowDistance2 = this.calcDistance(facetwotwo.faceLandmarks.eyebrowLeftOuter.x, facetwotwo.faceLandmarks.eyebrowLeftOuter.y, facetwotwo.faceLandmarks.eyebrowRightOuter.x, facetwotwo.faceLandmarks.eyebrowRightOuter.y);
-
-            double eyeDistance2 = this.calcDistance(facetwotwo.faceLandmarks.eyeLeftOuter.x, facetwotwo.faceLandmarks.eyeLeftOuter.y, facetwotwo.faceLandmarks.eyeRightOuter.x, facetwotwo.faceLandmarks.eyeRightOuter.y);
-
-            double mouthWidth2 = this.calcDistance(facetwotwo.faceLandmarks.mouthLeft.x, facetwotwo.faceLandmarks.mouthLeft.y, facetwotwo.faceLandmarks.mouthRight.x, facetwotwo.faceLandmarks.mouthRight.y);
-
-            double avgEyeWidth2 = (this.calcDistance(facetwotwo.faceLandmarks.eyeLeftOuter.x, facetwotwo.faceLandmarks.eyeLeftOuter.y, facetwotwo.faceLandmarks.eyeLeftInner.x, facetwotwo.faceLandmarks.eyeLeftInner.y) + this.calcDistance(facetwotwo.faceLandmarks.eyeRightOuter.x, facetwotwo.faceLandmarks.eyeRightOuter.y, facetwotwo.faceLandmarks.eyeRightInner.x, facetwotwo.faceLandmarks.eyeRightInner.y))/2;
-
-            double noseBottomWidth2 = this.calcDistance(facetwotwo.faceLandmarks.noseLeftAlarOutTip.x, facetwotwo.faceLandmarks.noseLeftAlarOutTip.y, facetwotwo.faceLandmarks.noseRightAlarOutTip.x, facetwotwo.faceLandmarks.noseRightAlarOutTip.y);
-
-            double noseMiddleWidth2 = this.calcDistance(facetwotwo.faceLandmarks.noseLeftAlarTop.x, facetwotwo.faceLandmarks.noseLeftAlarTop.y, facetwotwo.faceLandmarks.noseRightAlarTop.x, facetwotwo.faceLandmarks.noseRightAlarTop.y);
-
-            double leftEyebrowToMiddleNose2 = this.calcDistance(facetwotwo.faceLandmarks.pupilLeft.x, facetwotwo.faceLandmarks.pupilLeft.y, facetwotwo.faceLandmarks.noseTip.x, facetwotwo.faceLandmarks.noseTip.y);
-
-            double rigthEyebrowToMiddleNose2 = this.calcDistance(facetwotwo.faceLandmarks.pupilRight.x, facetwotwo.faceLandmarks.pupilRight.y, facetwotwo.faceLandmarks.noseTip.x, facetwotwo.faceLandmarks.noseTip.y);
-            
-
-            // System.out.println("eyeDistance2/eyebrowDistance2: " + eyeDistance2/eyebrowDistance2);
-
-            // System.out.println("mouthWidth2/eyeDistance2: " + mouthWidth2/eyeDistance2);
-
-            // System.out.println("eyeWidth/eyeDistance2: " + avgEyeWidth2/eyeDistance2);
-
-            // System.out.println("noseBottomWith/eyeDistance2: " + noseBottomWidth2/eyeDistance2);
-
-            // System.out.println("leftEyebrowToMiddleNose2/eyeDistance2: " + leftEyebrowToMiddleNose2/eyeDistance2);
-
-            // System.out.println("rigthEyebrowToMiddleNose2/eyeDistance2: " + rigthEyebrowToMiddleNose2/eyeDistance2);
-
-            // System.out.println("noseBottomMiddleWidth1/eyeDistance2: " + noseMiddleWidth2/eyeDistance2);
-
-            double difference = Math.abs(eyeDistance1/eyebrowDistance1 - eyeDistance2/eyebrowDistance2);
-            difference += Math.abs(mouthWidth1/eyeDistance1 - mouthWidth2/eyeDistance2);
-            difference += Math.abs(avgEyeWidth1/eyeDistance1 - avgEyeWidth2/eyeDistance2);
-            difference += Math.abs(noseBottomWidth1/eyeDistance1 - noseBottomWidth2/eyeDistance2);
-            difference += 1.3*Math.abs(leftEyebrowToMiddleNose1/eyeDistance1 - leftEyebrowToMiddleNose2/eyeDistance2);
-            difference += 1.3*Math.abs(rigthEyebrowToMiddleNose1/eyeDistance1 - rigthEyebrowToMiddleNose2/eyeDistance2);
-            difference += Math.abs(noseMiddleWidth1/eyeDistance1 - noseMiddleWidth2/eyeDistance2);
-
-            System.out.println("gender1:" + faceoneone.faceAttributes.gender);
-            System.out.println("gender2:" + facetwotwo.faceAttributes.gender);
+            System.out.println("gender1:" + faceOne.faceAttributes.gender);
+            System.out.println("gender2:" + faceTwo.faceAttributes.gender);
 
             fr = new FaceResponse();
             fr.faces = faces;
 
             double genderDifference = 0;
 
-            faceoneone.faceAttributes.gender.equals(facetwotwo.faceAttributes.gender);
+            faceOne.faceAttributes.gender.equals(faceTwo.faceAttributes.gender);
 
-            if (!faceoneone.faceAttributes.gender.equals(facetwotwo.faceAttributes.gender))
+            if (!faceOne.faceAttributes.gender.equals(faceTwo.faceAttributes.gender))
             {
                 genderDifference = 50;
             }
-                
-            //fr.confidence = 100 - genderDifference - Math.pow(difference * 15, 2);
-            
-            //System.out.println(facetwotwo);
-
 
             System.out.println("difference " + difference);
-            //we should still do the algorithm for this
-            //fr.confidence = 92.70;
-
-            //weight1
 
             //get angles between pupils and nosetip
-            float anglepupilsone = (float) Math.toDegrees(Math.atan2(faceoneone.faceLandmarks.pupilRight.y - faceoneone.faceLandmarks.pupilLeft.y, faceoneone.faceLandmarks.pupilRight.x - faceoneone.faceLandmarks.pupilLeft.x));
-            float anglepupilstwo = (float) Math.toDegrees(Math.atan2(facetwotwo.faceLandmarks.pupilRight.y - facetwotwo.faceLandmarks.pupilLeft.y, facetwotwo.faceLandmarks.pupilRight.x - facetwotwo.faceLandmarks.pupilLeft.x));
+            float anglepupilsone = (float) Math.toDegrees(Math.atan2(faceOne.faceLandmarks.pupilRight.y - faceOne.faceLandmarks.pupilLeft.y, faceOne.faceLandmarks.pupilRight.x - faceOne.faceLandmarks.pupilLeft.x));
+            float anglepupilstwo = (float) Math.toDegrees(Math.atan2(faceTwo.faceLandmarks.pupilRight.y - faceTwo.faceLandmarks.pupilLeft.y, faceTwo.faceLandmarks.pupilRight.x - faceTwo.faceLandmarks.pupilLeft.x));
 
-            float angleleftone = (float) Math.toDegrees(Math.atan2(faceoneone.faceLandmarks.noseTip.y - faceoneone.faceLandmarks.pupilLeft.y, faceoneone.faceLandmarks.noseTip.x - faceoneone.faceLandmarks.pupilLeft.x));
-            float anglelefttwo = (float) Math.toDegrees(Math.atan2(facetwotwo.faceLandmarks.noseTip.y - facetwotwo.faceLandmarks.pupilLeft.y, facetwotwo.faceLandmarks.noseTip.x - facetwotwo.faceLandmarks.pupilLeft.x));
+            float angleleftone = (float) Math.toDegrees(Math.atan2(faceOne.faceLandmarks.noseTip.y - faceOne.faceLandmarks.pupilLeft.y, faceOne.faceLandmarks.noseTip.x - faceOne.faceLandmarks.pupilLeft.x));
+            float anglelefttwo = (float) Math.toDegrees(Math.atan2(faceTwo.faceLandmarks.noseTip.y - faceTwo.faceLandmarks.pupilLeft.y, faceTwo.faceLandmarks.noseTip.x - faceTwo.faceLandmarks.pupilLeft.x));
 
-            float anglerightone = (float) Math.toDegrees(Math.atan2(faceoneone.faceLandmarks.noseTip.y - faceoneone.faceLandmarks.pupilRight.y, faceoneone.faceLandmarks.noseTip.x - faceoneone.faceLandmarks.pupilRight.x));
-            float anglerighttwo = (float) Math.toDegrees(Math.atan2(facetwotwo.faceLandmarks.noseTip.y - facetwotwo.faceLandmarks.pupilRight.y, facetwotwo.faceLandmarks.noseTip.x - facetwotwo.faceLandmarks.pupilRight.x));
+            float anglerightone = (float) Math.toDegrees(Math.atan2(faceOne.faceLandmarks.noseTip.y - faceOne.faceLandmarks.pupilRight.y, faceOne.faceLandmarks.noseTip.x - faceOne.faceLandmarks.pupilRight.x));
+            float anglerighttwo = (float) Math.toDegrees(Math.atan2(faceTwo.faceLandmarks.noseTip.y - faceTwo.faceLandmarks.pupilRight.y, faceTwo.faceLandmarks.noseTip.x - faceTwo.faceLandmarks.pupilRight.x));
             float trilefttangleone = (float)angleleftone + anglepupilsone;
             float trirightangleone = (float) 360 - anglerightone - 180 + anglepupilsone;
             float tribottomangleone = (float) 180 - (trilefttangleone + trirightangleone);
@@ -234,10 +186,15 @@ public class CompareService {
             if (weight1 > 1)
                 weight1 = 1 - (weight1 -1);
 
-            // fr.confidence = (double)weight1;
+            if (difference > 100) {
+                difference = 100;
+            }
 
-            fr.confidence =  (double) ((weight1*100 / 2) +  ((100  - Math.pow(difference * 15, 2))/2)) - genderDifference - Math.abs(faceoneone.faceAttributes.age - facetwotwo.faceAttributes.age );
+            double comparisonRatio = Math.abs((100-difference)/100);
+            fr.confidence =  (double) ((weight1*100 / 4 ) +  ((comparisonRatio*100) / 4 * 3));
 
+            System.out.println("weight1:" + weight1);
+            System.out.println("differenceRatio:" + comparisonRatio);
 
             if (isNull(entityone)) {
                 log.debug("{}", EntityUtils.toString(entityone));
