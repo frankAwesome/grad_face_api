@@ -1,211 +1,175 @@
 package com.face.recognition.service;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.List;
+import java.util.Arrays;
+import java.util.Base64;
 
-import com.face.recognition.models.facialRecognition.CandidateResponse;
-import com.face.recognition.models.facialRecognition.CreatePersonResponse;
-import com.face.recognition.models.facialRecognition.DetectFaceResponse;
-import com.face.recognition.models.facialRecognition.FaceIdentifyResponseBody;
-import com.face.recognition.models.facialRecognition.PersonDetailsResponse;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.face.recognition.models.facialrecognition.CandidateResponse;
+import com.face.recognition.models.facialrecognition.CreatePersonRequest;
+import com.face.recognition.models.facialrecognition.CreatePersonResponse;
+import com.face.recognition.models.facialrecognition.DetectFaceResponse;
+import com.face.recognition.models.facialrecognition.FaceIdentifyResponseBody;
+import com.face.recognition.models.facialrecognition.IdentifyFaceRequest;
+import com.face.recognition.models.facialrecognition.PersistedFace;
+import com.face.recognition.models.facialrecognition.PersonDetailsResponse;
 
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
 import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.entity.FileEntity;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import lombok.extern.slf4j.Slf4j;
-import net.minidev.json.JSONObject;
+
+import static java.util.Objects.isNull;
 
 @Slf4j
 @Service
 public class FaceIdentifyService {
 
-    public String addPerson(String name) throws URISyntaxException, ClientProtocolException, IOException {
+    public CreatePersonResponse addPerson(String name) {
+        final String url = "https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/persongroups/2/persons";
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", "application/json");
+        headers.set("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
+
+        HttpEntity<CreatePersonRequest> request = new HttpEntity<>(new CreatePersonRequest(name), headers);
+
+        CreatePersonResponse result = restTemplate.postForObject(url, request, CreatePersonResponse.class);
+        if (isNull(result)) {
+            log.info("Could not create face");
+            return null;
+        }
+        return result;
+    }
+
+    public String addFace(MultipartFile multipartFile, String personId) {
+        final String url = "https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/persongroups/2/persons/" + personId + "/persistedFaces";
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", "application/octet-stream");
+        headers.set("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
+
+        byte[] image;
+        try {
+            image = multipartFile.getBytes();
+        } catch (IOException e) {
+            log.info("Could not encode image", e);
+            return null;
+        }
+        String encodedImage = new String(Base64.getEncoder().encode(image));
+        byte[] decodedString = Base64.getDecoder().decode(encodedImage);
+
+        HttpEntity<byte[]> request = new HttpEntity<>(decodedString, headers);
+
+        PersistedFace result = restTemplate.postForObject(url, request, PersistedFace.class);
+        if (isNull(result)) {
+            log.info("Could not create face");
+            return null;
+        }
+
+        HttpClient httpclient = HttpClients.createDefault();
 
         try {
-    
-            URIBuilder builder = new URIBuilder("https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/persongroups/2/persons");
+            URIBuilder builder = new URIBuilder("https://westus.api.cognitive.microsoft.com/face/v1.0/persongroups/2/train");
+
 
             URI uri = builder.build();
-            HttpPost request = new HttpPost(uri);
-            request.setHeader("Content-Type", "application/json");
-            request.setHeader("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
+            HttpPost request2 = new HttpPost(uri);
+            request2.setHeader("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
 
-            JSONObject json = new JSONObject();
-            json.put("name", name);
+            HttpResponse response2 = httpclient.execute(request2);
 
-            StringEntity reqEntity = new StringEntity(json.toString());
-
-            request.setEntity(reqEntity);
-            HttpClient httpclient = HttpClients.createDefault();
-            HttpResponse response = httpclient.execute(request);
-
-            ObjectMapper mapper = new ObjectMapper();
-            CreatePersonResponse res = mapper.readValue(EntityUtils.toString(response.getEntity()),new TypeReference<CreatePersonResponse>() {});
-            
-            return res.personId;
-
-        }catch(Exception e) {
-            log.debug("{}", e.getMessage());
-            return null;
-        }
-
-    }
-
-    public String addFace(MultipartFile multipartFile, String personId)
-            throws URISyntaxException, ClientProtocolException, IOException {
-        
-        try {
-            URIBuilder builder = new URIBuilder("https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/persongroups/2/persons/" + personId + "/persistedFaces");
-
-            URI uri = builder.build();
-            HttpPost request = new HttpPost(uri);
-            request.setHeader("Content-Type", "application/octet-stream");
-            request.setHeader("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
-
-            FileEntity fileEntity = new FileEntity(convertToFile(multipartFile));
-
-            request.setEntity(fileEntity);
-
-            HttpClient httpclient = HttpClients.createDefault();
-            httpclient.execute(request);
-
-            URIBuilder builder1 = new URIBuilder(
-                    "https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/persongroups/2/train");
-
-            URI uri1 = builder1.build();
-            HttpPost request1 = new HttpPost(uri1);
-            request1.setHeader("Content-Type", "application/json");
-            request1.setHeader("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
-
-            HttpClient httpclient1 = HttpClients.createDefault();
-            httpclient1.execute(request1);
-
-            return "Success";
-
-        }catch(Exception e) {
-            log.debug("{}", e.getMessage());
-            return null;
-        }
-
-    }
-
-    public String getPersonName(String personId) throws URISyntaxException, ClientProtocolException, IOException {
-
-        try {
-            URIBuilder builder = new URIBuilder("https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/persongroups/2/persons/" + personId);
-
-            URI uri = builder.build();
-            HttpGet request = new HttpGet(uri);
-
-            request.setHeader("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
-
-            HttpClient httpclient = HttpClients.createDefault();
-            HttpResponse response = httpclient.execute(request);
-
-            ObjectMapper mapper = new ObjectMapper();
-            PersonDetailsResponse res =  mapper.readValue(EntityUtils.toString(response.getEntity()), new TypeReference<PersonDetailsResponse>() {});
-            return res.name;
-
-        }catch(Exception e) {
-            log.debug("{}", e.getMessage());
-            return null;
-        }
-    }
-
-    public String faceDetect(MultipartFile multipartFile)
-            throws URISyntaxException, ClientProtocolException, IOException {
-        
-        try {
-
-            URIBuilder builder = new URIBuilder("https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/detect");
-
-            URI uri = builder.build();
-            HttpPost request = new HttpPost(uri);
-            request.setHeader("Content-Type", "application/octet-stream");
-            request.setHeader("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
-
-            FileEntity fileEntity = new FileEntity(convertToFile(multipartFile));
-
-            request.setEntity(fileEntity);
-
-            HttpClient httpclient = HttpClients.createDefault();
-            HttpResponse response = httpclient.execute(request);
-
-            ObjectMapper mapper = new ObjectMapper();
-            List<DetectFaceResponse> res = mapper.readValue(EntityUtils.toString(response.getEntity()), new TypeReference<List<DetectFaceResponse>>() {});
-
-            String faceID = res.get(0).faceId;
-
-            CandidateResponse candidateResponse = identifyFace(faceID);
-                
-            return "Person: " + getPersonName(candidateResponse.personId) +  ", Confidence: " + candidateResponse.confidence*100 + "%";
-
-        }catch(Exception e) {
-            log.debug("{}", e.getMessage());
-            return null;
-        }
-    }
-
-    private CandidateResponse identifyFace(String faceID) throws URISyntaxException, ClientProtocolException, IOException
-    {
-        try {
-
-            URIBuilder builder1 = new URIBuilder("https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/identify");
-            URI uri1 = builder1.build();
-            HttpPost request1 = new HttpPost(uri1);
-
-            request1.setHeader("Content-Type", "application/json");
-            request1.setHeader("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
-
-
-            String json = "{\"faceIds\":[\"" + faceID + "\"],\"personGroupId\":\"2\", \"confidenceThreshold\": 0.01}";
-            StringEntity entity1 = new StringEntity(json);
-            request1.setEntity(entity1);
-
-
-
-            HttpClient httpclient1 = HttpClients.createDefault();
-            HttpResponse response1 = httpclient1.execute(request1);
-
-            ObjectMapper mapper1 = new ObjectMapper();
-            List<FaceIdentifyResponseBody> res1 =  mapper1.readValue(EntityUtils.toString(response1.getEntity()), new TypeReference<List<FaceIdentifyResponseBody>>() {});
-
-            return res1.get(0).candidates.get(0);
-
-        }catch(Exception e) {
-            log.debug("{}", e.getMessage());
-            return null;
-        }
-    }
-
-    private static File convertToFile(MultipartFile file) {
-        try {
-            File convFile = new File(file.getOriginalFilename());
-            convFile.createNewFile();
-            FileOutputStream fos = new FileOutputStream(convFile);
-            fos.write(file.getBytes());
-            fos.close();
-            return convFile;
+            if (isNull(response2)) {
+                log.info("Could not train data");
+                return null;
+            }
         } catch (Exception e) {
-            log.info("Could not convert file: ", e);
+            log.info(e.getMessage());
             return null;
         }
+        return "Success";
     }
 
+    public PersonDetailsResponse getPersonName(String personId) {
+        final String url = "https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/persongroups/2/persons/" + personId;
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
+
+        HttpEntity<HttpHeaders> request = new HttpEntity<>(headers);
+
+        ResponseEntity<PersonDetailsResponse> result = restTemplate.exchange(url, HttpMethod.GET, request, PersonDetailsResponse.class);
+
+        if (isNull(result) || isNull(result.getBody())) {
+            log.info("Could not retrieve person");
+            return null;
+        }
+        return result.getBody();
+    }
+
+    public CandidateResponse faceDetect(MultipartFile multipartFile) {
+        final String url = "https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/detect";
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", "application/octet-stream");
+        headers.set("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
+
+        byte[] image;
+        try {
+            image = multipartFile.getBytes();
+        } catch (IOException e) {
+            log.info("Could not encode image", e);
+            return null;
+        }
+        String encodedImage = new String(Base64.getEncoder().encode(image));
+        byte[] decodedString = Base64.getDecoder().decode(encodedImage);
+
+        HttpEntity<byte[]> request = new HttpEntity<>(decodedString, headers);
+
+        DetectFaceResponse[] result = restTemplate.postForObject(url, request, DetectFaceResponse[].class);
+        if (isNull(result)) {
+            log.info("Could not retrieve faces");
+            return null;
+        }
+        return identifyFace(Arrays.asList(result).get(0).getFaceId());
+    }
+
+    private CandidateResponse identifyFace(String faceId) {
+        final String url = "https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/identify";
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", "application/json");
+        headers.set("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
+
+        String[] faceIds = {faceId};
+        HttpEntity<IdentifyFaceRequest> request = new HttpEntity<>(new IdentifyFaceRequest(faceIds, "2", 0.01), headers);
+
+        FaceIdentifyResponseBody[] result = restTemplate.postForObject(url, request, FaceIdentifyResponseBody[].class);
+        if (isNull(result)) {
+            log.info("Could not identify face");
+            return null;
+        }
+        return Arrays.asList(result).get(0).getCandidates().get(0);
+    }
 }

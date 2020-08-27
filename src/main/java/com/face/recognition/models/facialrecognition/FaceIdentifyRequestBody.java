@@ -1,4 +1,4 @@
-package com.face.recognition.models.facialRecognition;
+package com.face.recognition.models.facialrecognition;
 
 import java.util.List;
 
