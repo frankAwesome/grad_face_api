@@ -2,6 +2,7 @@ package com.face.recognition.controller;
 
 import com.face.recognition.models.FaceResponse;
 import com.face.recognition.models.facialRecognition.Person;
+import com.face.recognition.models.facialRecognition.ReturnResponse;
 import com.face.recognition.service.CompareService;
 import com.face.recognition.service.FaceIdentifyService;
 import com.face.recognition.service.TextService;
@@ -59,7 +60,7 @@ public class CompareController {
 
 
     @ApiOperation(value = "Add person to the AzureFaceDatabase", response = String.class, consumes = "application/json")
-    @PostMapping(value = "/addPerson", consumes = APPLICATION_JSON_VALUE, produces = "plain/text")
+    @PostMapping(value = "/person", consumes = APPLICATION_JSON_VALUE, produces = "plain/text")
     public ResponseEntity<String> addPerson(@RequestBody Person person) throws ClientProtocolException, URISyntaxException, IOException {
         log.debug("adding person");
         return new ResponseEntity<>(faceIdentifyService.addPerson(person.name), HttpStatus.OK);
@@ -67,7 +68,7 @@ public class CompareController {
 
 
     @ApiOperation(value = "Add face to the AzureFaceDatabase and train model", response = String.class, consumes = "application/json")
-    @PostMapping(value = "/addFace/{personId:.*}",consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = "plain/text")
+    @PostMapping(value = "/face/{personId:.*}",consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = "plain/text")
     public ResponseEntity<String> addFace(@RequestPart(value = "file", required = true) MultipartFile multipartFile, @PathVariable(required = true) String personId) throws ClientProtocolException, URISyntaxException, IOException {
         log.debug("adding face");
         return new ResponseEntity<>(faceIdentifyService.addFace(multipartFile, personId), HttpStatus.OK);
@@ -78,7 +79,7 @@ public class CompareController {
     @GetMapping(value = "/personDetails/{personId:.*}", produces = "plain/text")
     public ResponseEntity<String> getPersonDetails(@PathVariable(required = true) String personId) throws ClientProtocolException, URISyntaxException, IOException {
         log.debug("getting person details");
-        return new ResponseEntity<>(faceIdentifyService.getPersonDetails(personId), HttpStatus.OK);
+        return new ResponseEntity<>(faceIdentifyService.getPersonName(personId), HttpStatus.OK);
     }
 
 
