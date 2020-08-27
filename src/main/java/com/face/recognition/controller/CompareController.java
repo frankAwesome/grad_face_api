@@ -1,16 +1,24 @@
 package com.face.recognition.controller;
 
+import com.face.recognition.exceptions.ValidationException;
 import com.face.recognition.models.FaceResponse;
 import com.face.recognition.models.facialRecognition.Person;
 import com.face.recognition.models.facialRecognition.ReturnResponse;
 import com.face.recognition.service.CompareService;
 import com.face.recognition.service.FaceIdentifyService;
+import com.face.recognition.models.usermanagement.AuthenticationRequest;
+import com.face.recognition.models.usermanagement.AuthenticationResponse;
+import com.face.recognition.models.usermanagement.RegisterRequest;
+import com.face.recognition.models.usermanagement.User;
+import com.face.recognition.service.CompareService;
+import com.face.recognition.service.MyUserDetailsService;
 import com.face.recognition.service.TextService;
 import com.lowagie.text.Image;
 import com.lowagie.text.pdf.codec.Base64.InputStream;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.Authorization;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,7 +43,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 
 @Slf4j
-@Api(tags = "FaceRecog", produces = APPLICATION_JSON_VALUE)
+@Api(tags = "APEye", produces = APPLICATION_JSON_VALUE)
 @RestController
 @RequestMapping(value ="/api/v1", produces = APPLICATION_JSON_VALUE)
 @AllArgsConstructor(onConstructor = @__(@Autowired))
@@ -44,17 +52,17 @@ public class CompareController {
     private final CompareService compareService;
     private final TextService textService;
     private final FaceIdentifyService faceIdentifyService;
+    private final MyUserDetailsService userDetailsService;
 
-    @ApiOperation(value = "Compares two faces", response = FaceResponse.class)
+    @ApiOperation(value = "Compares two faces", response = FaceResponse.class, authorizations = { @Authorization(value="jwtToken") })
     @PostMapping("/compare")
     public ResponseEntity<FaceResponse> postImages(@RequestBody String body) {
         return new ResponseEntity<>(compareService.compare(body), HttpStatus.OK);
     }
 
-    @ApiOperation(value = "Reads text from an image", response = String.class, consumes = "multipart/form-data")
+    @ApiOperation(value = "Reads text from an image", response = String.class, consumes = "multipart/form-data", authorizations = { @Authorization(value="jwtToken") })
     @PostMapping(value = "/text", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = "plain/text")
     public ResponseEntity<String> readText(@RequestPart(value = "file", required = true) MultipartFile file) {
-        log.debug("attempting to read text");
         return new ResponseEntity<>(textService.detectText(file), HttpStatus.OK);
     }
 
@@ -90,4 +98,16 @@ public class CompareController {
         return new ResponseEntity<>(faceIdentifyService.faceDetect(multipartFile), HttpStatus.OK);
     }
 
+    @ApiOperation(value = "Logs a user into the api", response = AuthenticationResponse.class)
+    @PostMapping("/login")
+    public ResponseEntity<AuthenticationResponse> createAuthenticationToken(@RequestBody AuthenticationRequest authenticationRequest) throws ValidationException {
+        return ResponseEntity.ok(userDetailsService.loginUser(authenticationRequest));
+    }
+
+    @ApiOperation(value = "Registers a user for the api", response = String.class)
+    @PostMapping("/register")
+    public ResponseEntity<String> registerUser(@RequestBody RegisterRequest registerRequest) {
+        userDetailsService.registerUser(User.builder().username(registerRequest.getUsername()).password(registerRequest.getPassword()).build());
+        return ResponseEntity.ok("User registered");
+    }
 }
