@@ -8,6 +8,7 @@ import com.face.recognition.models.usermanagement.User;
 import com.face.recognition.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -37,6 +38,26 @@ public class MyUserDetailsService implements UserDetailsService {
     private JwtUtil jwtTokenUtil;
 
     public void registerUser(User user) {
+        Optional<UserDetails> dbUser;
+        try
+        {
+            dbUser = userRepository.findByUserName(user.getUsername());
+            if (dbUser.isPresent())
+            {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT, "User with username " + user.getUsername() +  " already exists. Please Register with another user.");
+            }
+        }
+        catch (EmptyResultDataAccessException e)
+        {
+            System.out.println();
+        }
+        catch (ResponseStatusException e)
+        {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "User with username " + user.getUsername() +  " already exists. Please Register with another user.");
+        }
+
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
     }
