@@ -2,26 +2,15 @@ package com.face.recognition.service;
 
 import com.face.recognition.models.Face;
 import com.face.recognition.models.FaceResponse;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.entity.ContentType;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 
@@ -31,21 +20,34 @@ import static java.util.Objects.isNull;
 @Service
 public class CompareService {
 
-    private double calcDistance(double x1, double y1, double x2, double y2) {
-                
-        return Math.sqrt((y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1));
+    public FaceResponse compare(String body) {
+        FaceResponse fr = new FaceResponse();
+
+        String[] image = body.split("split",2);
+        byte[] decodedString1 = Base64.getDecoder().decode(image[0].getBytes());
+        byte[] decodedString2 = Base64.getDecoder().decode(image[1].getBytes());
+
+        Face faceOne = getFace(decodedString1);
+        Face faceTwo = getFace(decodedString2);
+
+        List<Face> faces = new ArrayList<>();
+        faces.add(faceOne);
+        faces.add(faceTwo);
+        fr.faces = faces;
+
+        double weight = getWeight(faceOne, faceTwo);
+        double comparisonRatio = getComparisonRatio(faceOne, faceTwo);
+        fr.confidence = ((weight*100 / 4 ) +  ((comparisonRatio*100) / 4 * 3));
+
+        return fr;
     }
 
-    public Face normalizeFaceLandMarks(Face face){
-
-        Face normalizedFace = new Face();
-
-        return normalizedFace;
+    private double calcDistance(double x1, double y1, double x2, double y2) {
+        return Math.sqrt((y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1));
     }
 
     // gets the relative distance difference between different face's features
     private double calculateDifferenceRatio(double referenceDistance1, double referenceDistance2, double distance1, double distance2) {
-
         double ratio = (referenceDistance1/distance1)/(referenceDistance2/distance2);
         
         return Math.abs(1-ratio);
@@ -53,8 +55,7 @@ public class CompareService {
 
     // gets distances between certain facial features
     private ArrayList<Double> calculateDistanceList(Face face) {
-
-        ArrayList<Double> distanceList = new ArrayList<Double>();
+        ArrayList<Double> distanceList = new ArrayList<>();
 
         distanceList.add(this.calcDistance(face.faceLandmarks.eyeLeftOuter.x, face.faceLandmarks.eyeLeftOuter.y, face.faceLandmarks.eyeRightOuter.x, face.faceLandmarks.eyeRightOuter.y));
         distanceList.add(this.calcDistance(face.faceLandmarks.eyebrowLeftOuter.x, face.faceLandmarks.eyebrowLeftOuter.y, face.faceLandmarks.eyebrowRightOuter.x, face.faceLandmarks.eyebrowRightOuter.y));
@@ -68,144 +69,74 @@ public class CompareService {
         return distanceList;
     }
 
-    public FaceResponse compare(String body) {
-        BufferedImage imgA;
-        BufferedImage imgB;
+    private Face getFace(byte[] decodedString) {
+        final String url = "https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/detect";
 
-        FaceResponse fr;
+        RestTemplate restTemplate = new RestTemplate();
 
-        String[] image = body.split("split",2);
-        byte[] one = image[0].getBytes();
-        byte[] two = image[1].getBytes();
-        byte[] decodedString1 = Base64.getDecoder().decode(one);
-        byte[] decodedString2 = Base64.getDecoder().decode(two);
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url)
+                .queryParam("returnFaceId", "true")
+                .queryParam("returnFaceLandmarks", "true")
+                .queryParam("returnFaceAttributes", "age,gender,emotion,makeup,glasses,facialHair")
+                .queryParam("recognitionModel", "recognition_01")
+                .queryParam("returnRecognitionModel", "false")
+                .queryParam("detectionModel", "detection_01");
 
-        try {
-            imgA = ImageIO.read(new ByteArrayInputStream(decodedString1));
-            log.trace("{}", imgA.toString());
-            imgB = ImageIO.read(new ByteArrayInputStream(decodedString2));
-            log.trace("{}", imgB.toString());
-        } catch(IOException e) {
-            log.debug("{}", e.toString());
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", "application/octet-stream");
+        headers.set("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
+
+        HttpEntity<byte[]> request = new HttpEntity<>(decodedString, headers);
+        Face[] result = restTemplate.postForObject(builder.toUriString(), request, Face[].class);
+        if (isNull(result)) {
+            log.info("Could not retrieve faces");
+            return null;
+        }
+        return Arrays.asList(result).get(0);
+    }
+
+    private double getComparisonRatio(Face faceOne, Face faceTwo) {
+        ArrayList<Double> distances1 = calculateDistanceList(faceOne);
+        ArrayList<Double> distances2 = calculateDistanceList(faceTwo);
+        double difference = 0;
+
+        for (int i = 1; i < distances1.size(); i++) {
+            difference += calculateDifferenceRatio(distances1.get(0), distances2.get(0), distances1.get(i), distances2.get(i));
         }
 
-        HttpClient httpclient = HttpClients.createDefault();
+        difference = Math.pow(difference * 8, 2);
 
-        try
-        {
-            URIBuilder builder = new URIBuilder("https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/detect");
-
-            builder.setParameter("returnFaceId", "true");
-            builder.setParameter("returnFaceLandmarks", "true");
-            builder.setParameter("returnFaceAttributes", "age,gender,emotion,makeup,glasses,facialHair");
-            builder.setParameter("recognitionModel", "recognition_01");
-            builder.setParameter("returnRecognitionModel", "false");
-            builder.setParameter("detectionModel", "detection_01");
-
-            URI uri = builder.build();
-            HttpPost request = new HttpPost(uri);
-            request.setHeader("Content-Type", "application/octet-stream");
-            request.setHeader("Ocp-Apim-Subscription-Key", "3ae481e8934c4231af64d040cbf8e3c3");
-
-            ByteArrayEntity reqEntity = new ByteArrayEntity(decodedString1, ContentType.APPLICATION_OCTET_STREAM);
-            request.setEntity(reqEntity);
-              
-            HttpResponse response = httpclient.execute(request);
-            HttpEntity entityone = response.getEntity();
-
-
-            ByteArrayEntity reqEntityTwo = new ByteArrayEntity(decodedString2, ContentType.APPLICATION_OCTET_STREAM);
-            request.setEntity(reqEntityTwo);
-
-            HttpResponse responsetwo = httpclient.execute(request);
-            HttpEntity entitytwo = responsetwo.getEntity();
-
-            ObjectMapper mapper = new ObjectMapper();
-            List<Face> faceOneList =
-                    mapper.readValue(EntityUtils.toString(entityone), new TypeReference<List<Face>>() {});
-
-            List<Face> faceTwoList =
-                    mapper.readValue(EntityUtils.toString(entitytwo), new TypeReference<List<Face>>() {});
-
-            Face faceOne = faceOneList.get(0);
-            Face faceTwo = faceTwoList.get(0);
-
-            List<Face> faces = new ArrayList<>();
-            faces.add(faceOne);
-            faces.add(faceTwo);
-
-            ArrayList<Double> distances1 = this.calculateDistanceList(faceOne);
-
-            ArrayList<Double> distances2 = this.calculateDistanceList(faceTwo);
-
-            double difference = 0;
-
-            for (int i = 1; i < distances1.size(); i++) {
-
-                difference += this.calculateDifferenceRatio(distances1.get(0), distances2.get(0), distances1.get(i), distances2.get(i));
-            }
-
-            difference = Math.pow(difference * 8, 2);
-
-            System.out.println("gender1:" + faceOne.faceAttributes.gender);
-            System.out.println("gender2:" + faceTwo.faceAttributes.gender);
-
-            fr = new FaceResponse();
-            fr.faces = faces;
-
-            double genderDifference = 0;
-
-            faceOne.faceAttributes.gender.equals(faceTwo.faceAttributes.gender);
-
-            if (!faceOne.faceAttributes.gender.equals(faceTwo.faceAttributes.gender))
-            {
-                genderDifference = 50;
-            }
-
-            System.out.println("difference " + difference);
-
-            //get angles between pupils and nosetip
-            float anglepupilsone = (float) Math.toDegrees(Math.atan2(faceOne.faceLandmarks.pupilRight.y - faceOne.faceLandmarks.pupilLeft.y, faceOne.faceLandmarks.pupilRight.x - faceOne.faceLandmarks.pupilLeft.x));
-            float anglepupilstwo = (float) Math.toDegrees(Math.atan2(faceTwo.faceLandmarks.pupilRight.y - faceTwo.faceLandmarks.pupilLeft.y, faceTwo.faceLandmarks.pupilRight.x - faceTwo.faceLandmarks.pupilLeft.x));
-
-            float angleleftone = (float) Math.toDegrees(Math.atan2(faceOne.faceLandmarks.noseTip.y - faceOne.faceLandmarks.pupilLeft.y, faceOne.faceLandmarks.noseTip.x - faceOne.faceLandmarks.pupilLeft.x));
-            float anglelefttwo = (float) Math.toDegrees(Math.atan2(faceTwo.faceLandmarks.noseTip.y - faceTwo.faceLandmarks.pupilLeft.y, faceTwo.faceLandmarks.noseTip.x - faceTwo.faceLandmarks.pupilLeft.x));
-
-            float anglerightone = (float) Math.toDegrees(Math.atan2(faceOne.faceLandmarks.noseTip.y - faceOne.faceLandmarks.pupilRight.y, faceOne.faceLandmarks.noseTip.x - faceOne.faceLandmarks.pupilRight.x));
-            float anglerighttwo = (float) Math.toDegrees(Math.atan2(faceTwo.faceLandmarks.noseTip.y - faceTwo.faceLandmarks.pupilRight.y, faceTwo.faceLandmarks.noseTip.x - faceTwo.faceLandmarks.pupilRight.x));
-            float trilefttangleone = (float)angleleftone + anglepupilsone;
-            float trirightangleone = (float) 360 - anglerightone - 180 + anglepupilsone;
-            float tribottomangleone = (float) 180 - (trilefttangleone + trirightangleone);
-
-            float trilefttangletwo = (float)anglelefttwo + anglepupilstwo;
-            float trirightangletwo = (float) 360 - anglerighttwo - 180 + anglepupilstwo;
-            float tribottomangletwo = (float) 180 - (trilefttangletwo + trirightangletwo);
-
-            float weight1 = (float)tribottomangleone / tribottomangletwo;
-
-            if (weight1 > 1)
-                weight1 = 1 - (weight1 -1);
-
-            if (difference > 100) {
-                difference = 100;
-            }
-
-            double comparisonRatio = Math.abs((100-difference)/100);
-            fr.confidence =  (double) ((weight1*100 / 4 ) +  ((comparisonRatio*100) / 4 * 3));
-
-            System.out.println("weight1:" + weight1);
-            System.out.println("differenceRatio:" + comparisonRatio);
-
-            if (isNull(entityone)) {
-                log.debug("{}", EntityUtils.toString(entityone));
-            }
-            if (isNull(entitytwo)) {
-                log.debug("{}", EntityUtils.toString(entitytwo));
-            }
-            return fr;
-        } catch (Exception e) {
-            log.debug("{}", e.getMessage());
+        if (difference > 100) {
+            difference = 100;
         }
-        return null;
+
+        return Math.abs((100-difference)/100);
+    }
+
+    private double getWeight(Face faceOne, Face faceTwo) {
+        double weight = getTriBottomAngle(faceOne) / getTriBottomAngle(faceTwo);
+        if (weight > 1) {
+            weight = 1 - (weight - 1);
+        }
+        return weight;
+    }
+
+    private double getTriBottomAngle(Face face) {
+        double anglepupilsone = Math.toDegrees(Math.atan2(
+                face.faceLandmarks.pupilRight.y - face.faceLandmarks.pupilLeft.y,
+                face.faceLandmarks.pupilRight.x - face.faceLandmarks.pupilLeft.x));
+
+        double angleleftone = Math.toDegrees(Math.atan2(
+                face.faceLandmarks.noseTip.y - face.faceLandmarks.pupilLeft.y,
+                face.faceLandmarks.noseTip.x - face.faceLandmarks.pupilLeft.x));
+
+        double anglerightone = Math.toDegrees(Math.atan2(
+                face.faceLandmarks.noseTip.y - face.faceLandmarks.pupilRight.y,
+                face.faceLandmarks.noseTip.x - face.faceLandmarks.pupilRight.x));
+
+        double trilefttangleone = angleleftone + anglepupilsone;
+        double trirightangleone = 360 - anglerightone - 180 + anglepupilsone;
+
+        return 180 - (trilefttangleone + trirightangleone);
     }
 }
