@@ -11,6 +11,7 @@ import com.face.recognition.service.MyUserDetailsService;
 import com.face.recognition.service.TextService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.Authorization;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,13 +38,13 @@ public class CompareController {
     private final TextService textService;
     private final MyUserDetailsService userDetailsService;
 
-    @ApiOperation(value = "Compares two faces", response = FaceResponse.class)
+    @ApiOperation(value = "Compares two faces", response = FaceResponse.class, authorizations = { @Authorization(value="jwtToken") })
     @PostMapping("/compare")
     public ResponseEntity<FaceResponse> postImages(@RequestBody String body) {
         return new ResponseEntity<>(compareService.compare(body), HttpStatus.OK);
     }
 
-    @ApiOperation(value = "Reads text from an image", response = String.class, consumes = "multipart/form-data")
+    @ApiOperation(value = "Reads text from an image", response = String.class, consumes = "multipart/form-data", authorizations = { @Authorization(value="jwtToken") })
     @PostMapping(value = "/text", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = "plain/text")
     public ResponseEntity<String> readText(@RequestPart(value = "file", required = true) MultipartFile file) {
         return new ResponseEntity<>(textService.detectText(file), HttpStatus.OK);
