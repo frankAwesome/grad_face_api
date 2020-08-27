@@ -18,7 +18,7 @@ public class SwaggerConfiguration {
     @Bean
     public Docket api() {
         return new Docket(SWAGGER_2)
-                .groupName("FaceRecog")
+                .groupName("APEye")
                 .apiInfo(apiInfo())
                 .select()
                 .apis(RequestHandlerSelectors.basePackage("com.face.recognition"))
@@ -28,7 +28,7 @@ public class SwaggerConfiguration {
 
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
-                .title("Facial Recognition")
+                .title("APEye")
                 .contact(new Contact("SomeAssholes", "", ""))
                 .build();
     }

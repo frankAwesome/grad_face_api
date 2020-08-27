@@ -1,7 +1,13 @@
 package com.face.recognition.controller;
 
+import com.face.recognition.exceptions.ValidationException;
 import com.face.recognition.models.FaceResponse;
+import com.face.recognition.models.usermanagement.AuthenticationRequest;
+import com.face.recognition.models.usermanagement.AuthenticationResponse;
+import com.face.recognition.models.usermanagement.RegisterRequest;
+import com.face.recognition.models.usermanagement.User;
 import com.face.recognition.service.CompareService;
+import com.face.recognition.service.MyUserDetailsService;
 import com.face.recognition.service.TextService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -21,7 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @Slf4j
-@Api(tags = "FaceRecog", produces = APPLICATION_JSON_VALUE)
+@Api(tags = "APEye", produces = APPLICATION_JSON_VALUE)
 @RestController
 @RequestMapping(value ="/api/v1", produces = APPLICATION_JSON_VALUE)
 @AllArgsConstructor(onConstructor = @__(@Autowired))
@@ -29,6 +35,7 @@ public class CompareController {
 
     private final CompareService compareService;
     private final TextService textService;
+    private final MyUserDetailsService userDetailsService;
 
     @ApiOperation(value = "Compares two faces", response = FaceResponse.class)
     @PostMapping("/compare")
@@ -39,7 +46,19 @@ public class CompareController {
     @ApiOperation(value = "Reads text from an image", response = String.class, consumes = "multipart/form-data")
     @PostMapping(value = "/text", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = "plain/text")
     public ResponseEntity<String> readText(@RequestPart(value = "file", required = true) MultipartFile file) {
-        log.debug("attempting to read text");
         return new ResponseEntity<>(textService.detectText(file), HttpStatus.OK);
+    }
+
+    @ApiOperation(value = "Logs a user into the api", response = AuthenticationResponse.class)
+    @PostMapping("/login")
+    public ResponseEntity<AuthenticationResponse> createAuthenticationToken(@RequestBody AuthenticationRequest authenticationRequest) throws ValidationException {
+        return ResponseEntity.ok(userDetailsService.loginUser(authenticationRequest));
+    }
+
+    @ApiOperation(value = "Registers a user for the api", response = String.class)
+    @PostMapping("/register")
+    public ResponseEntity<String> registerUser(@RequestBody RegisterRequest registerRequest) {
+        userDetailsService.registerUser(User.builder().username(registerRequest.getUsername()).password(registerRequest.getPassword()).build());
+        return ResponseEntity.ok("User registered");
     }
 }
