@@ -36,30 +36,16 @@ public class CompareController {
 
     private final CompareService compareService;
     private final TextService textService;
-    private final MyUserDetailsService userDetailsService;
 
-    @ApiOperation(value = "Compares two faces", response = FaceResponse.class, authorizations = { @Authorization(value="jwtToken") })
-    @PostMapping("/compare")
-    public ResponseEntity<FaceResponse> postImages(@RequestBody String body) {
+    @ApiOperation(value = "Compares two faces", tags = "APEye", response = FaceResponse.class, authorizations = { @Authorization(value="jwtToken") })
+    @PostMapping("/compareFaces")
+    public ResponseEntity<FaceResponse> compareFaces(@RequestBody String body) {
         return new ResponseEntity<>(compareService.compare(body), HttpStatus.OK);
     }
 
-    @ApiOperation(value = "Reads text from an image", response = String.class, consumes = "multipart/form-data", authorizations = { @Authorization(value="jwtToken") })
-    @PostMapping(value = "/text", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = "plain/text")
-    public ResponseEntity<String> readText(@RequestPart(value = "file", required = true) MultipartFile file) {
+    @ApiOperation(value = "Reads text from an image", tags = "APEye", response = String.class, consumes = "multipart/form-data", authorizations = { @Authorization(value="jwtToken") })
+    @PostMapping(value = "/readText", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = "plain/text")
+    public ResponseEntity<String> readText(@RequestPart(value = "file") MultipartFile file) {
         return new ResponseEntity<>(textService.detectText(file), HttpStatus.OK);
-    }
-
-    @ApiOperation(value = "Logs a user into the api", response = AuthenticationResponse.class)
-    @PostMapping("/login")
-    public ResponseEntity<AuthenticationResponse> createAuthenticationToken(@RequestBody AuthenticationRequest authenticationRequest) throws ValidationException {
-        return ResponseEntity.ok(userDetailsService.loginUser(authenticationRequest));
-    }
-
-    @ApiOperation(value = "Registers a user for the api", response = String.class)
-    @PostMapping("/register")
-    public ResponseEntity<String> registerUser(@RequestBody RegisterRequest registerRequest) {
-        userDetailsService.registerUser(User.builder().username(registerRequest.getUsername()).password(registerRequest.getPassword()).build());
-        return ResponseEntity.ok("User registered");
     }
 }
