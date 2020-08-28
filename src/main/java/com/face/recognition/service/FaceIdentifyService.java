@@ -85,7 +85,7 @@ public class FaceIdentifyService {
         HttpClient httpclient = HttpClients.createDefault();
 
         try {
-            URIBuilder builder = new URIBuilder("https://westus.api.cognitive.microsoft.com/face/v1.0/persongroups/2/train");
+            URIBuilder builder = new URIBuilder("https://bitzerfacetest.cognitiveservices.azure.com/face/v1.0/persongroups/2/train");
 
 
             URI uri = builder.build();
